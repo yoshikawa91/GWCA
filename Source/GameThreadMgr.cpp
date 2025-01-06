@@ -1,36 +1,37 @@
 #include "stdafx.h"
 
-#include <GWCA/Utilities/Export.h>
-#include <GWCA/Utilities/Hooker.h>
-#include <GWCA/Utilities/Macros.h>
+#include <GWCA/Utilities/Debug.h>
 #include <GWCA/Utilities/Scanner.h>
 
 #include <GWCA/Managers/Module.h>
-#include <GWCA/Managers/MemoryMgr.h>
 #include <GWCA/Managers/GameThreadMgr.h>
+#include <GWCA/Utilities/Hooker.h>
 
 namespace {
     using namespace GW;
 
     CRITICAL_SECTION mutex;
 
-    uint32_t last_identifier = 0;
-    bool render_state = false;
-
     typedef void(__cdecl *Render_t)(void*);
-    uintptr_t *g__thingy;
-    Render_t g__thingyret;
+    Render_t LeaveGameThread_Func = 0;
+    Render_t LeaveGameThread_Ret = 0;
 
-    std::vector<std::function<void(void)>> singleshot_callbacks;
+    bool initialised = false;
+
+    bool in_gamethread = false;
+
+    std::vector<std::function<void()>> singleshot_callbacks;
     std::unordered_map<HookEntry *, GameThread::GameThreadCallback> GameThread_callbacks;
 
     void CallFunctions()
     {
+        if (!initialised)
+            return;
         EnterCriticalSection(&mutex);
-
+        in_gamethread = true;
         if (!singleshot_callbacks.empty()) {
-            for (const auto& Call : singleshot_callbacks) {
-                Call();
+            for (const auto& call : singleshot_callbacks) {
+                call();
             }
 
             singleshot_callbacks.clear();
@@ -41,23 +42,36 @@ namespace {
             it.second(&status);
             ++status.altitude;
         }
-
+        in_gamethread = false;
         LeaveCriticalSection(&mutex);
     }
 
-    void __cdecl gameLoopHook(void* unk)
-    {
+
+    void __cdecl OnLeaveGameThread(void* unk) {
         CallFunctions();
-        g__thingyret(unk);
+        LeaveGameThread_Ret(unk);
     }
 
     void Init()
     {
         InitializeCriticalSection(&mutex);
 
-        uintptr_t address = Scanner::Find(
-            "\x2B\xCE\x8B\x15\x00\x00\x00\x00\xF7\xD9\x1B\xC9", "xxxx????xxxx", +4);
-        printf("[SCAN] BasePointerLocation = %p\n", (void *)address);
+        uintptr_t address = Scanner::FindAssertion("p:\\code\\engine\\frame\\frapi.cpp", "!s_bufferBits", 0x5f);
+        LeaveGameThread_Func = *(Render_t*)address;
+
+
+#ifdef _DEBUG
+        GWCA_ASSERT(LeaveGameThread_Func);
+#endif
+
+        GW::HookBase::CreateHook(LeaveGameThread_Func, OnLeaveGameThread, (void **)&LeaveGameThread_Ret);
+        /*
+                uintptr_t address = Scanner::Find("\x2B\xCE\x8B\x15\x00\x00\x00\x00\xF7\xD9\x1B\xC9", "xxxx????xxxx", +4);
+        GWCA_INFO("[SCAN] BasePointerLocation = %p", (void *)address);
+
+#if _DEBUG
+        GWCA_ASSERT(address);
+#endif
 
         if (Verify(address)) {
             address = *(uintptr_t *)(address);
@@ -67,22 +81,38 @@ namespace {
             g__thingy = (uintptr_t *)(address + 4);
             g__thingyret = (Render_t)*g__thingy;
         }
-    }
+        */
 
-    void Exit()
-    {
-        GameThread::ClearCalls();
-        DeleteCriticalSection(&mutex);
+
+
+        initialised = true;
     }
 
     void EnableHooks()
     {
-        *g__thingy = (uintptr_t)gameLoopHook;
+        if (!initialised)
+            return;
+        EnterCriticalSection(&mutex);
+        HookBase::EnableHooks(LeaveGameThread_Func);
+        LeaveCriticalSection(&mutex);
     }
 
     void DisableHooks()
     {
-        *g__thingy = (uintptr_t)g__thingyret;
+        if (!initialised)
+            return;
+        EnterCriticalSection(&mutex);
+        HookBase::DisableHooks(LeaveGameThread_Func);
+        LeaveCriticalSection(&mutex);
+    }
+    void Exit()
+    {
+        if (!initialised)
+            return;
+        DisableHooks();
+        GameThread::ClearCalls();
+        HookBase::RemoveHook(LeaveGameThread_Func);
+        DeleteCriticalSection(&mutex);
     }
 }
 
@@ -98,6 +128,8 @@ namespace GW {
 
     void GameThread::ClearCalls()
     {
+        if (!initialised)
+            return;
         EnterCriticalSection(&mutex);
         singleshot_callbacks.clear();
         GameThread_callbacks.clear();
@@ -106,14 +138,31 @@ namespace GW {
 
     void GameThread::Enqueue(std::function<void()> f)
     {
+        if (!initialised)
+            return;
         EnterCriticalSection(&mutex);
-        singleshot_callbacks.emplace_back(f);
+        if (in_gamethread) {
+            f();
+        }
+        else {
+            singleshot_callbacks.push_back(std::move(f));
+        }
         LeaveCriticalSection(&mutex);
+    }
+
+    bool GameThread::IsInGameThread()
+    {
+        if (!initialised)
+            return false;
+        EnterCriticalSection(&mutex);
+        const bool ret = in_gamethread;
+        LeaveCriticalSection(&mutex);
+        return ret;
     }
 
     void GameThread::RegisterGameThreadCallback(
         HookEntry *entry,
-        GameThreadCallback callback)
+        const GameThreadCallback& callback)
     {
         GameThread_callbacks.insert({entry, callback});
     }

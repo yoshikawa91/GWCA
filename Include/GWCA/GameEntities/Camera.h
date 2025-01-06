@@ -1,5 +1,7 @@
 #pragma once
 
+#include <GWCA/GameContainers/GamePos.h>
+
 namespace GW {
     struct Camera {
         /* +h0000 */ uint32_t look_at_agent_id;
@@ -38,22 +40,39 @@ namespace GW {
         /* +h00C4 */ float field_of_view2;
         // ...
 
-        float GetYaw()          { return yaw; }
-        float GetPitch()        { return pitch; }
-        float GetFieldOfView()  { return field_of_view; }
+        float GetYaw()          const { return yaw; }
+        float GetPitch()        const { return pitch; }
 
-        void SetYaw(float yaw) {
-            this->yaw_to_go = yaw;
-            this->yaw = yaw;
+        /// \brief This is not the FoV that GW uses to render
+        /// see GW::Render::GetFieldOfView()
+        float GetFieldOfView()  const { return field_of_view; }
+
+        void SetYaw(float _yaw) {
+            yaw_to_go = _yaw;
+            yaw = _yaw;
+        }
+        float GetCurrentYaw() const
+        {
+            const Vec3f dir = position - look_at_target;
+            const float curtan = atan2(dir.y, dir.x);
+            constexpr float pi = 3.141592741f;
+            float curyaw;
+            if (curtan >= 0) {
+                curyaw = curtan - pi;
+            }
+            else {
+                curyaw = curtan + pi;
+            }
+            return curyaw;
         }
 
-        void SetPitch(float pitch) {
-            this->pitch_to_go = pitch;
+        void SetPitch(float _pitch) {
+            pitch_to_go = _pitch;
         }
 
-        float GetCameraZoom()     { return distance; }
-        Vec3f GetLookAtTarget()   { return look_at_target; }
-        Vec3f GetCameraPosition() { return position; }
+        float GetCameraZoom()     const { return distance; }
+        Vec3f GetLookAtTarget()   const { return look_at_target; }
+        Vec3f GetCameraPosition() const { return position; }
 
         void SetCameraPos(Vec3f newPos) {
             this->position.x = newPos.x;

@@ -3,7 +3,6 @@
 #include <stdint.h>
 
 #include <GWCA/GameContainers/Array.h>
-#include <GWCA/GameEntities/Item.h>
 
 
 namespace GW {
@@ -32,7 +31,7 @@ namespace GW {
         // bool GetPartnerAccepted();
         // bool GetPartnerOfferSent();
 
-        bool GetIsTradeInitiated() { return (flags & TRADE_INITIATED) != 0; }
-        bool GetIsTradeAccepted()  { return (flags & TRADE_ACCEPTED)  != 0; }
+        bool GetIsTradeInitiated() const { return (flags & TRADE_INITIATED) != 0; }
+        bool GetIsTradeAccepted()  const { return (flags & TRADE_ACCEPTED)  != 0; }
     };
 }

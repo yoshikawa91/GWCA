@@ -1,21 +1,26 @@
 #pragma once
 
 #include <GWCA/GameContainers/Array.h>
+#include <GWCA/GameContainers/GamePos.h>
 
 namespace GW {
     typedef uint32_t AgentID;
+
+    enum class HeroBehavior : uint32_t {
+        Fight, Guard, AvoidCombat
+    };
 
     struct HeroFlag { // total: 0x20/36
         /* +h0000 */ uint32_t hero_id;
         /* +h0004 */ AgentID  agent_id;
         /* +h0008 */ uint32_t level;
-        /* +h000C */ uint32_t hero_behavior;
+        /* +h000C */ HeroBehavior hero_behavior;
         /* +h0010 */ Vec2f flag;
         /* +h0018 */ uint32_t h0018;
         /* +h001C */ AgentID locked_target_id;
         /* +h0020 */ uint32_t h0020; // type is unknown too, added for padding
     };
-    static_assert(sizeof(HeroFlag) == 36, "struct HeroFlag has incorect size");
+    static_assert(sizeof(HeroFlag) == 0x24, "struct HeroFlag has incorect size");
 
     struct HeroInfo { // total: 0x78/120
         /* +h0000 */ uint32_t hero_id;

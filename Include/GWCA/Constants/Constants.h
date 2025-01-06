@@ -1,24 +1,24 @@
+// ReSharper disable CppUnusedIncludeDirective
 #pragma once
 
-#include <string>
-
-#include "Skills.h"
-#include "Maps.h"
-#include "ItemIDs.h"
 #include "AgentIDs.h"
+#include "ItemIDs.h"
+#include "Maps.h"
 #include "QuestIDs.h"
+#include "Skills.h"
 
 namespace GW {
     namespace Constants {
-        enum class Difficulty { Normal, Hard };
 
+        enum class Campaign { Core, Prophecies, Factions, Nightfall, EyeOfTheNorth, BonusMissionPack };
+        enum class Difficulty { Normal, Hard };
         enum class InstanceType { Outpost, Explorable, Loading };
 
         enum class Profession {
             None, Warrior, Ranger, Monk, Necromancer, Mesmer,
             Elementalist, Assassin, Ritualist, Paragon, Dervish
         };
-        static std::string GetProfessionAcronym(Profession prof) {
+        static const char* GetProfessionAcronym(Profession prof) {
             switch (prof) {
             case GW::Constants::Profession::None: return "X";
             case GW::Constants::Profession::Warrior: return "W";
@@ -34,7 +34,7 @@ namespace GW {
             default: return "";
             }
         }
-        static std::wstring GetWProfessionAcronym(Profession prof) {
+        static const wchar_t* GetWProfessionAcronym(Profession prof) {
             switch (prof) {
             case GW::Constants::Profession::None: return L"X";
             case GW::Constants::Profession::Warrior: return L"W";
@@ -51,7 +51,13 @@ namespace GW {
             }
         }
 
-        enum class Attribute {
+        namespace Preference {
+            enum class CharSortOrder : uint32_t {
+                None, Alphabetize, PvPRP
+            };
+        }
+
+        enum class Attribute : uint32_t {
             FastCasting, IllusionMagic, DominationMagic, InspirationMagic,      // mesmer
             BloodMagic, DeathMagic, SoulReaping, Curses,                        // necro
             AirMagic, EarthMagic, FireMagic, WaterMagic, EnergyStorage,         // ele
@@ -66,21 +72,19 @@ namespace GW {
             None = 0xff
         };
 
-        enum class OnlineStatus { OFFLINE, ONLINE, DO_NOT_DISTURB, AWAY };
-
         enum class Bag {
             None, Backpack, Belt_Pouch, Bag_1, Bag_2, Equipment_Pack,
             Material_Storage, Unclaimed_Items, Storage_1, Storage_2,
             Storage_3, Storage_4, Storage_5, Storage_6, Storage_7,
-            Storage_8, Storage_9, Storage_10, Storage_11, Storage_12, 
-			Storage_13, Storage_14, Equipped_Items, Max
+            Storage_8, Storage_9, Storage_10, Storage_11, Storage_12,
+            Storage_13, Storage_14, Equipped_Items, Max
         };
-		// Order of storage panes.
-		enum class StoragePane {
-			Storage_1,Storage_2,Storage_3,Storage_4,Storage_5,
-			Storage_6,Storage_7,Storage_8,Storage_9,Storage_10,
-			Storage_11,Storage_12,Storage_13,Storage_14,Material_Storage
-		};
+        // Order of storage panes.
+        enum class StoragePane {
+            Storage_1,Storage_2,Storage_3,Storage_4,Storage_5,
+            Storage_6,Storage_7,Storage_8,Storage_9,Storage_10,
+            Storage_11,Storage_12,Storage_13,Storage_14,Material_Storage
+        };
 
         constexpr size_t BagMax = (size_t)Bag::Max;
 
@@ -88,11 +92,15 @@ namespace GW {
             Living = 0xDB, Gadget = 0x200, Item = 0x400
         };
 
-        enum class ItemType {
-            Salvage, Axe = 2, Bag, Boots, Bow, Chestpiece = 7, Rune_Mod, Usable, Dye,
+        enum class Allegiance : uint8_t {
+            Ally_NonAttackable = 0x1, Neutral = 0x2, Enemy = 0x3, Spirit_Pet = 0x4, Minion = 0x5, Npc_Minipet = 0x6
+        };
+
+        enum class ItemType : uint8_t {
+            Salvage, Axe = 2, Bag, Boots, Bow, Bundle, Chestpiece, Rune_Mod, Usable, Dye,
             Materials_Zcoins, Offhand, Gloves, Hammer = 15, Headpiece, CC_Shards,
             Key, Leggings, Gold_Coin, Quest_Item, Wand, Shield = 24, Staff = 26, Sword,
-            Kit = 29, Trophy, Scroll, Daggers, Present, Minipet, Scythe, Spear, Costume = 45
+            Kit = 29, Trophy, Scroll, Daggers, Present, Minipet, Scythe, Spear, Storybook = 43, Costume, Costume_Headpiece, Unknown = 0xff
         };
 
         enum HeroID : uint32_t {
@@ -161,13 +169,14 @@ namespace GW {
             Profession::Ritualist, // Zei Ri
         };
 
-        enum HeroBehavior : uint32_t {
-            Fight, Guard, AvoidCombat
-        };
-
-        enum TitleID : uint32_t {
+        enum class TitleID : uint32_t {
             Hero, TyrianCarto, CanthanCarto, Gladiator, Champion, Kurzick,
-            Luxon, Drunkard, Survivor = 0x9, KoaBD, ProtectorTyria = 0xD,
+            Luxon, Drunkard,
+            Deprecated_SkillHunter, // Pre hard mode update version
+            Survivor, KoaBD,
+            Deprecated_TreasureHunter, // Old title, non-account bound
+            Deprecated_Wisdom, // Old title, non-account bound
+            ProtectorTyria,
             ProtectorCantha, Lucky, Unlucky, Sunspear, ElonianCarto,
             ProtectorElona, Lightbringer, LDoA, Commander, Gamer,
             SkillHunterTyria, VanquisherTyria, SkillHunterCantha,
@@ -175,17 +184,18 @@ namespace GW {
             LegendaryCarto, LegendaryGuardian, LegendarySkillHunter,
             LegendaryVanquisher, Sweets, GuardianTyria, GuardianCantha,
             GuardianElona, Asuran, Deldrimor, Vanguard, Norn, MasterOfTheNorth,
-            Party, Zaishen, TreasureHunter, Wisdom, Codex
+            Party, Zaishen, TreasureHunter, Wisdom, Codex,
+            None = 0xff
         };
 
         enum class Tick { NOT_READY, READY };
 
-        enum class InterfaceSize { SMALL = 0, NORMAL, LARGE, LARGER };
+        enum class InterfaceSize { SMALL = -1, NORMAL, LARGE, LARGER };
         namespace HealthbarHeight {
-            constexpr int Small = 25;
-            constexpr int Normal = 22;
-            constexpr int Large = 28;
-            constexpr int Larger = 31;
+            constexpr size_t Small = 24;
+            constexpr size_t Normal = 22;
+            constexpr size_t Large = 26;
+            constexpr size_t Larger = 30;
         }
 
         // travel, region, districts
@@ -225,11 +235,12 @@ namespace GW {
         };
 
         namespace Range {
+            constexpr float Touch = 144.f;
             constexpr float Adjacent = 166.0f;
-            constexpr float Nearby = 238.0f;
+            constexpr float Nearby = 252.0f;
             constexpr float Area = 322.0f;
-            constexpr float Earshot = 1010.0f;
-            constexpr float Spellcast = 1246.0f;
+            constexpr float Earshot = 1012.0f;
+            constexpr float Spellcast = 1248.0f;
             constexpr float Spirit = 2500.0f;
             constexpr float Compass = 5000.0f;
         };
@@ -245,13 +256,14 @@ namespace GW {
         };
 
         namespace DialogID {
-            constexpr int UwTeleVale = 138;
+            constexpr int UwTeleEnquire = 127;      // "where can you teleport us to"
             constexpr int UwTelePlanes = 139;
             constexpr int UwTeleWastes = 140;
             constexpr int UwTeleLab = 141;
             constexpr int UwTeleMnt = 142;
             constexpr int UwTelePits = 143;
             constexpr int UwTelePools = 144;
+            constexpr int UwTeleVale = 145;
 
             constexpr int FowCraftArmor = 127;
 
@@ -276,9 +288,32 @@ namespace GW {
             constexpr int NightfallMissionOutpost = 0x85;
         }
 
+        enum class EffectID : uint32_t {
+            black_cloud = 1,
+            mesmer_symbol = 4,
+            green_cloud = 7,
+            green_sparks = 8,
+            necro_symbol = 9,
+            ele_symbol = 11,
+            white_clouds = 13,
+            monk_symbol = 18,
+            bleeding = 23,
+            blind = 24,
+            burning = 25,
+            disease = 26,
+            poison = 27,
+            dazed = 28,
+            weakness = 29, //cracked_armor has same EffectID
+            assasin_symbol = 34,
+            ritualist_symbol = 35,
+            dervish_symbol = 36,
+        };
+
         namespace Camera {
             constexpr float FIRST_PERSON_DIST = 2.f;
             constexpr float DEFAULT_DIST = 750.f;
         }
+
+        constexpr size_t SkillMax = 0xd69;
     }
 }

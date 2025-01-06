@@ -14,18 +14,18 @@ namespace GW {
     namespace Merchant {
 
         struct TransactionInfo {
-            uint32_t  item_count;
-            uint32_t *item_ids;
-            uint32_t *item_quantities;
+            uint32_t  item_count = 0;
+            uint32_t *item_ids = nullptr;
+            uint32_t *item_quantities = nullptr;
         };
 
         struct QuoteInfo {
-            uint32_t  unknown; // = 0
-            uint32_t  item_count;
-            uint32_t *item_ids;
+            uint32_t  unknown = 0;
+            uint32_t  item_count = 0;
+            uint32_t *item_ids = nullptr;
         };
 
-        enum TransactionType : uint32_t {
+        enum class TransactionType : uint32_t {
             MerchantBuy = 0x1,
             CollectorBuy,
             CrafterBuy,
@@ -38,17 +38,17 @@ namespace GW {
             UnlockRunePriestOfBalth = 0xF
         };
 
-        GWCA_API void TransactItems(
-            TransactionType type,
+        GWCA_API bool TransactItems(TransactionType type,
             uint32_t gold_give, TransactionInfo give,
-            uint32_t gold_recv, TransactionInfo recv);
+            uint32_t gold_recv, TransactionInfo recv
+        );
 
-        GWCA_API void RequestQuote(
-            TransactionType type,
+        GWCA_API bool RequestQuote(TransactionType type,
             QuoteInfo give,
-            QuoteInfo recv);
+            QuoteInfo recv
+        );
 
         // note: can contain pointers to random items from your inventory
-        GWCA_API MerchItemArray GetMerchantItemsArray();
+        GWCA_API MerchItemArray* GetMerchantItemsArray();
     };
 }

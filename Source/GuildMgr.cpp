@@ -1,21 +1,20 @@
 #include "stdafx.h"
 
-#include <GWCA/Packets/Opcodes.h>
-#include <GWCA/Utilities/Export.h>
-#include <GWCA/Utilities/Scanner.h>
 
 #include <GWCA/GameEntities/Guild.h>
-#include <GWCA/Context/GameContext.h>
+#include <GWCA/GameEntities/Map.h>
+
 #include <GWCA/Context/GuildContext.h>
 
 #include <GWCA/Managers/Module.h>
+#include <GWCA/Managers/UIMgr.h>
+#include <GWCA/Managers/MapMgr.h>
 
-#include <GWCA/Managers/CtoSMgr.h>
 #include <GWCA/Managers/GuildMgr.h>
 
 namespace GW {
 
-    Module GuildModule {
+    Module GuildModule{
         "GuildModule",  // name
         NULL,           // param
         NULL,           // init_module
@@ -23,38 +22,58 @@ namespace GW {
         NULL,           // exit_module
         NULL,           // remove_hooks
     };
+    namespace GuildMgr {
+        wchar_t* GetPlayerGuildAnnouncer() {
+            auto* g = GetGuildContext();
+            return g ? g->announcement_author : nullptr;
+        }
 
-    GuildContext *GuildMgr::GetGuildContext() {
-        return GameContext::instance()->guild;
-    }
+        wchar_t* GetPlayerGuildAnnouncement() {
+            auto* g = GetGuildContext();
+            return g ? g->announcement : nullptr;
+        }
 
-    wchar_t *GuildMgr::GetPlayerGuildAnnouncer() {
-        return GameContext::instance()->guild->announcement_author;
-    }
+        uint32_t GetPlayerGuildIndex() {
+            auto* g = GetGuildContext();
+            return g ? g->player_guild_index : 0;
+        }
 
-    wchar_t *GuildMgr::GetPlayerGuildAnnouncement() {
-        return GameContext::instance()->guild->announcement;
-    }
+        GuildArray* GetGuildArray() {
+            auto* g = GetGuildContext();
+            return g && g->guilds.valid() ? &g->guilds : nullptr;
+        }
+        Guild* GetPlayerGuild() {
+            return GetGuildInfo(GetPlayerGuildIndex());
+        }
 
-    uint32_t GuildMgr::GetPlayerGuildIndex() {
-        return GameContext::instance()->guild->player_guild_index;
-    }
+        Guild* GetCurrentGH() {
+            AreaInfo* m = Map::GetCurrentMapInfo();
+            if (!m || m->type != GW::RegionType::GuildHall) return nullptr;
+            GW::Array<GW::Guild*>* guilds = GW::GuildMgr::GetGuildArray();
+            if (!guilds) return nullptr;
+            for (auto* guild : *guilds) {
+                if (guild) return guild;
+            }
+            return nullptr;
+        }
 
-    GuildArray GuildMgr::GetGuildArray() {
-        return GameContext::instance()->guild->guilds;
-    }
+        Guild* GetGuildInfo(uint32_t guild_id) {
+            auto* g = GetGuildArray();
+            return g && guild_id < g->size() ? g->at(guild_id) : nullptr;
+        }
 
-    void GuildMgr::TravelGH() {
-        GHKey guild_uuid = GameContext::instance()->guild->player_gh_key;
-        CtoS::SendPacket(0x18, GAME_CMSG_PARTY_ENTER_GUILD_HALL,
-            guild_uuid.k[0], guild_uuid.k[1], guild_uuid.k[2], guild_uuid.k[3]);
-    }
+        bool TravelGH() {
+            auto* g = GetGuildContext();
+            return g ? TravelGH(g->player_gh_key) : false;
 
-    void GuildMgr::TravelGH(GHKey key) {
-        CtoS::SendPacket(0x18, GAME_CMSG_PARTY_ENTER_GUILD_HALL, key.k[0], key.k[1], key.k[2], key.k[3]);
-    }
+        }
 
-    void GuildMgr::LeaveGH() {
-        CtoS::SendPacket(0x8, GAME_CMSG_PARTY_LEAVE_GUILD_HALL, 0x1);
+        bool TravelGH(GHKey key) {
+            return UI::SendUIMessage(UI::UIMessage::kGuildHall, &key);
+        }
+
+        bool LeaveGH() {
+            return UI::SendUIMessage(UI::UIMessage::kLeaveGuildHall);
+        }
     }
 } // namespace GW

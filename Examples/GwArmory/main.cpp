@@ -2,35 +2,35 @@
 #include <Windows.h>
 #include <Windowsx.h>
 
-#include <assert.h>
-#include <stdint.h>
+#include <cassert>
+#include <cstdint>
 
+#include <string>
 #include <vector>
 
-#include <d3dx9tex.h>
-
-#include "imgui.h"
+#include <imgui.h>
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #endif
-#include "imgui_internal.h"
-#include "imgui_impl_dx9.h"
 #include "ImGuiAddons.h"
+#include "imgui_impl_dx9.h"
+#include <imgui_internal.h>
 
 #include <GWCA/GWCA.h>
 
+#include <GWCA/Constants/Constants.h>
 #include <GWCA/Utilities/Hooker.h>
 #include <GWCA/Utilities/Scanner.h>
-#include <GWCA/Constants/Constants.h>
 
 #include <GWCA/GameEntities/Agent.h>
 
-#include <GWCA/Managers/ChatMgr.h>
 #include <GWCA/Managers/AgentMgr.h>
+#include <GWCA/Managers/ChatMgr.h>
 #include <GWCA/Managers/MemoryMgr.h>
 #include <GWCA/Managers/RenderMgr.h>
 
 #include "ArmorsDatabase.h"
+
 
 // Arg3:
 //  - Costume = 0x20000006
@@ -214,7 +214,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM l
         if (!right_mouse_down) io.MouseDown[0] = true;
         break;
     case WM_LBUTTONUP:
-        io.MouseDown[0] = false; 
+        io.MouseDown[0] = false;
         break;
     case WM_MBUTTONDOWN:
     case WM_MBUTTONDBLCLK:
@@ -227,8 +227,8 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM l
         io.KeysDown[VK_MBUTTON] = false;
         io.MouseDown[2] = false;
         break;
-    case WM_MOUSEWHEEL: 
-        if (!right_mouse_down) io.MouseWheel += GET_WHEEL_DELTA_WPARAM(wParam) > 0 ? +1.0f : -1.0f; 
+    case WM_MOUSEWHEEL:
+        if (!right_mouse_down) io.MouseWheel += GET_WHEEL_DELTA_WPARAM(wParam) > 0 ? +1.0f : -1.0f;
         break;
     case WM_MOUSEMOVE:
         if (!right_mouse_down) {
@@ -272,7 +272,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM l
     // Send button up mouse events to everything, to avoid being stuck on mouse-down
     case WM_LBUTTONUP:
         break;
-        
+
     // Other mouse events:
     // - If right mouse down, leave it to gw
     // - ImGui first (above), if WantCaptureMouse that's it
@@ -290,7 +290,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM l
     case WM_KEYUP:
     case WM_SYSKEYUP:
         if (io.WantTextInput) break; // if imgui wants them, send to imgui (above) and to gw
-        // else fallthrough
+        [[fallthrough]];
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
     case WM_CHAR:
@@ -304,9 +304,9 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT Message, WPARAM wParam, LPARAM l
     case WM_MBUTTONUP:
         if (io.WantTextInput) return true; // if imgui wants them, send just to imgui (above)
 
-        // note: capturing those events would prevent typing if you have a hotkey assigned to normal letters. 
+        // note: capturing those events would prevent typing if you have a hotkey assigned to normal letters.
         // We may want to not send events to toolbox if the player is typing in-game
-        // Otherwise, we may want to capture events. 
+        // Otherwise, we may want to capture events.
         // For that, we may want to only capture *successfull* hotkey activations.
         break;
 
@@ -361,7 +361,7 @@ static void UpdateArmorsFilter(GW::Constants::Profession prof, Campaign campaign
     hands.pieces.clear();
     legs.pieces.clear();
     feets.pieces.clear();
-    
+
     head.current_piece_index = -1;
     chest.current_piece_index = -1;
     hands.current_piece_index = -1;
@@ -579,7 +579,7 @@ static void Draw(IDirect3DDevice9* device)
         GW::Scanner::Initialize();
         SetItem_Func = (SetItem_pt)GW::Scanner::Find("\x83\xC4\x04\x8B\x08\x8B\xC1\xC1", "xxxxxxxx", -0x24);
         if (!SetItem_Func) {
-            GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, "GwArmory: Failed to find the SetItem function");
+            GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"GwArmory: Failed to find the SetItem function");
         } else {
             GW::AgentLiving* player_agent = GW::Agents::GetPlayerAsAgentLiving();
             if (player_agent && player_agent->equip && player_agent->equip[0]) {
@@ -592,7 +592,7 @@ static void Draw(IDirect3DDevice9* device)
             }
         }
 
-        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, "GwArmory: Initialized");
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"GwArmory: Initialized");
         initialized = true;
     }
 
@@ -619,7 +619,7 @@ static void Draw(IDirect3DDevice9* device)
         ImGui::DestroyContext();
         SetWindowLongPtr(hWnd, GWL_WNDPROC, OldWndProc);
 
-        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, "GwArmory: Bye!");
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"GwArmory: Bye!");
         GW::DisableHooks();
         running = false;
     }
@@ -633,18 +633,20 @@ static DWORD WINAPI ThreadProc(LPVOID lpModule)
 
     HMODULE hModule = static_cast<HMODULE>(lpModule);
 
-    AllocConsole();
     FILE* stdout_proxy = nullptr;
     FILE* stderr_proxy = nullptr;
+#ifdef _DEBUG
+    AllocConsole();
+    SetConsoleTitle("GwArmory Console");
+    freopen_s(&stdout_proxy, "CONOUT$", "w", stdout);
+    freopen_s(&stderr_proxy, "CONOUT$", "w", stderr);
+#else
 #if 0
     // If you replace the above "#if 0" by "#if 1", you will log
     // the stdout in "log.txt" which will be in your "Gw.exe" folder.
     freopen_s(&stdout_proxy, "log.txt", "w", stdout);
-#else
-    freopen_s(&stdout_proxy, "CONOUT$", "w", stdout);
 #endif
-    freopen_s(&stderr_proxy, "CONOUT$", "w", stderr);
-    SetConsoleTitle("GwArmory Console");
+#endif
 
     GW::Initialize();
 

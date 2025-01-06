@@ -1,5 +1,6 @@
 #pragma once
-#include <assert.h>
+
+#include <GWCA/Utilities/Debug.h>
 
 namespace GW {
 
@@ -25,8 +26,16 @@ namespace GW {
             , m_param(0)
         {}
 
-        T& at(uint32_t index) {
-            assert(m_buffer && index < m_size);
+        Array(const Array&) = delete;
+        Array& operator=(const Array&) = delete;
+
+        T& at(size_t index) {
+            GWCA_ASSERT(m_buffer && index < m_size);
+            return m_buffer[index];
+        }
+
+        const T& at(size_t index) const {
+            GWCA_ASSERT(m_buffer && index < m_size);
             return m_buffer[index];
         }
 
@@ -35,7 +44,7 @@ namespace GW {
         }
 
         const T& operator[](uint32_t index) const {
-            assert(m_buffer && index < m_size);
+            GWCA_ASSERT(m_buffer && index < m_size);
             return m_buffer[index];
         }
 
@@ -45,19 +54,10 @@ namespace GW {
         uint32_t size()     const { return m_size; }
         uint32_t capacity() const { return m_capacity; }
 
-        T& find_first(bool* found, bool(*cmpfn)(T&))
-        {
-            for (uint32_t i = 0; i < m_size; ++i) {
-                if (cmpfn(m_buffer[i])) {
-                    return m_buffer[i];
-                }
-            }
-        }
-
-    public:
         T*       m_buffer;    // +h0000
         uint32_t m_capacity;  // +h0004
         uint32_t m_size;      // +h0008
         uint32_t m_param;     // +h000C
     }; // Size: 0x0010
+
 }

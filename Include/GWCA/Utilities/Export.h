@@ -11,5 +11,9 @@
 #ifdef GWCA_BUILD_EXPORTS
 # define GWCA_API DllExport
 #else
-# define GWCA_API extern
+#ifdef GWCA_IMPORT
+# define GWCA_API DllImport
+#else
+# define GWCA_API
+#endif
 #endif

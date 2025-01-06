@@ -1,17 +1,21 @@
 #pragma once
 
+#include <GWCA/GameEntities/Guild.h>
 #include <GWCA/GameContainers/Array.h>
+#include <GWCA/Utilities/Export.h>
 
 namespace GW {
-    struct Guild;
-    struct GuildPlayer;
-    struct GuildHistoryEvent;
+    struct GuildContext;
+    GWCA_API GuildContext* GetGuildContext();
 
     typedef Array<Guild *> GuildArray;
     typedef Array<GuildPlayer *> GuildRoster;
     typedef Array<GuildHistoryEvent *> GuildHistory;
 
     struct GuildContext {
+
+        static GuildContext* instance();
+
         /* +h0000 */ uint32_t h0000;
         /* +h0004 */ uint32_t h0004;
         /* +h0008 */ uint32_t h0008;
@@ -29,9 +33,9 @@ namespace GW {
         /* +h0074 */ uint32_t h0074;
         /* +h0078 */ wchar_t announcement[256];
         /* +h0278 */ wchar_t announcement_author[20];
-        /* +h02A0 */ uint32_t h02A0;
+        /* +h02A0 */ uint32_t player_guild_rank;
         /* +h02A4 */ uint32_t h02A4;
-        /* +h02A8 */ Array<void *> h02A8;
+        /* +h02A8 */ Array<void *> factions_outpost_guilds;
         /* +h02B8 */ Array<void *> h02B8;
         /* +h02C8 */ uint32_t h02C8;
         /* +h02CC */ GuildHistory player_guild_history;

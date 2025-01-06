@@ -1,6 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
+#include <string>
+
 #include <GWCA/GWCA.h>
 #include <GWCA/Utilities/Hooker.h>
 
@@ -18,7 +20,7 @@ static volatile bool running;
 static void CmdTeleport(const wchar_t *msg, int argc, wchar_t **argv)
 {
     if (argc != 2) {
-        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, "Teleport: /tp <outpost id>");
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Teleport: /tp <outpost id>");
         return;
     }
 
@@ -26,8 +28,8 @@ static void CmdTeleport(const wchar_t *msg, int argc, wchar_t **argv)
 
     int outpost_id = wcstol(argv[1], nullptr, 0);
     if (outpost_id < 0 || MAX_MAP_ID < outpost_id) {
-        char buffer[1024];
-        snprintf(buffer, sizeof(buffer), "Teleport: The map id must be between 0 and %d", MAX_MAP_ID);
+        wchar_t buffer[512];
+        wsprintfW(buffer, L"Teleport: The map id must be between 0 and %d", MAX_MAP_ID);
 
         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, buffer);
         return;
@@ -45,11 +47,11 @@ static void GameLoop(IDirect3DDevice9* device)
         GW::Chat::CreateCommand(L"tp", CmdTeleport);
         initialized = true;
 
-        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, "Teleport: Initialized");
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Teleport: Initialized");
     }
 
     if (GetAsyncKeyState(VK_END) & 1) {
-        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, "Teleport: Bye!");
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Teleport: Bye!");
         GW::DisableHooks();
         running = false;
     }

@@ -1,20 +1,24 @@
 #include "stdafx.h"
 
+#include <GWCA/Utilities/Debug.h>
 #include <GWCA/Utilities/Export.h>
 #include <GWCA/Utilities/Hooker.h>
 #include <GWCA/Utilities/Macros.h>
 #include <GWCA/Utilities/Scanner.h>
 
 #include <GWCA/GameContainers/Array.h>
-#include <GWCA/GameContainers/GamePos.h>
 
 #include <GWCA/Packets/StoC.h>
 
 #include <GWCA/Managers/Module.h>
 #include <GWCA/Managers/StoCMgr.h>
+#include <GWCA/Managers/GameThreadMgr.h>
 
 namespace {
+    constexpr uint32_t STOC_HEADER_COUNT = 0x1e5;
+
     using namespace GW;
+    CRITICAL_SECTION mutex;
 
     typedef bool (__cdecl *StoCHandler_pt)(Packet::StoC::PacketBase *pak);
     struct StoCHandler {
@@ -42,57 +46,116 @@ namespace {
         } *gs_codec;
     };
 
-    StoCHandlerArray game_server_handlers;
+    StoCHandlerArray* game_server_handlers = 0;
     StoCHandler *original_functions = nullptr;
 
-    std::vector<std::unordered_map<HookEntry *, StoC::PacketCallback>> packets_callbacks;
+    // Callbacks are triggered by weighting
+    struct CallbackEntry {
+        int altitude;
+        HookEntry* entry;
+        GW::StoC::PacketCallback callback;
+    };
+    std::vector<std::vector<CallbackEntry>> packet_entries;
+
 
     bool __cdecl StoCHandler_Func(Packet::StoC::PacketBase *pak) {
         GW::HookBase::EnterHook();
         HookStatus status;
-
-        for (auto& it : packets_callbacks[pak->header]) {
-            it.second(&status, pak);
+        auto it = packet_entries[pak->header].begin();
+        // Pre callbacks
+        while (it != packet_entries[pak->header].end()) {
+            if (it->altitude > 0)
+                break;
+            it->callback(&status, pak);
             ++status.altitude;
+            it++;
         }
 
         if (!status.blocked)
             original_functions[pak->header].handler_func(pak);
+
+        // Post callbacks
+        while (it != packet_entries[pak->header].end()) {
+            it->callback(&status, pak);
+            ++status.altitude;
+            it++;
+        }
+
         GW::HookBase::LeaveHook();
         return true;
     }
 
-    void OriginalHandler(Packet::StoC::PacketBase *packet) {
-        original_functions[packet->header].handler_func(packet);
-    }
+    bool hooks_enabled = false;
+    size_t stoc_handler_count = 0;
 
-    void Init() {
-        uintptr_t StoCHandler_Addr;
-        {
-            uintptr_t address = Scanner::Find(
-                "\x75\x04\x33\xC0\x5D\xC3\x8B\x41\x08\xA8\x01\x75", "xxxxxxxxxxxx", -6);
-            printf("[SCAN] StoCHandler pattern = %p\n", (void *)address);
-            if (Verify(address))
-                StoCHandler_Addr = *(uintptr_t *)address;
+    bool OriginalHandler(Packet::StoC::PacketBase *packet) {
+        bool ok = false;
+        EnterCriticalSection(&mutex);
+        if (game_server_handlers && original_functions && stoc_handler_count > packet->header) {
+            original_functions[packet->header].handler_func(packet);
         }
-
-        GameServer **addr = reinterpret_cast<GameServer **>(StoCHandler_Addr);
-        game_server_handlers = (*addr)->gs_codec->handlers;
-
-        original_functions = new StoCHandler[game_server_handlers.size()];
-        packets_callbacks.resize(game_server_handlers.size());
+        LeaveCriticalSection(&mutex);
+        return ok;
     }
 
     void EnableHooks() {
-        for (uint32_t i = 0; i < game_server_handlers.size(); ++i)
-            original_functions[i] = game_server_handlers[i];
+        EnterCriticalSection(&mutex);
+        hooks_enabled = true;
+        for (uint32_t i = 0; i < stoc_handler_count; ++i)
+            original_functions[i] = game_server_handlers->at(i);
+        LeaveCriticalSection(&mutex);
     }
 
     void DisableHooks() {
-        if (original_functions == nullptr) return;
-        for (uint32_t i = 0; i < game_server_handlers.size(); ++i)
-            game_server_handlers[i].handler_func = original_functions[i].handler_func;
-        delete[] original_functions;
+        EnterCriticalSection(&mutex);
+        hooks_enabled = false;
+        if (original_functions) {
+            for (uint32_t i = 0; game_server_handlers && i < game_server_handlers->size(); ++i)
+                game_server_handlers->at(i).handler_func = original_functions[i].handler_func;
+            delete[] original_functions;
+            original_functions = nullptr;
+        }
+        LeaveCriticalSection(&mutex);
+    }
+    // GW doesn't have the StoC array in RDATA; its built from the different StoC modules in DATA, so trying to find it before GW is fully loaded will cause undefined behaviour
+    void InitOnGameThread() {
+        EnterCriticalSection(&mutex);
+        uintptr_t StoCHandler_Addr;
+        {
+            uintptr_t address = Scanner::Find("\x75\x04\x33\xC0\x5D\xC3\x8B\x41\x08\xA8\x01\x75", "xxxxxxxxxxxx", -6);
+            GWCA_INFO("[SCAN] StoCHandler pattern = %p\n", (void *)address);
+            if (Verify(address)) {
+                StoCHandler_Addr = *(uintptr_t*)address;
+                GameServer** addr = reinterpret_cast<GameServer**>(StoCHandler_Addr);
+                game_server_handlers = &(*addr)->gs_codec->handlers;
+            }
+        }
+
+        stoc_handler_count = game_server_handlers->size();
+        // Because GW registers new handlers module by module, we may have caught it too soon; sanity check to make sure the header count is over 300
+        GWCA_ASSERT(stoc_handler_count == STOC_HEADER_COUNT);
+        original_functions = new StoCHandler[stoc_handler_count];
+        packet_entries.resize(stoc_handler_count);
+
+        // Hook any packet entries that have already been registered
+        for (uint32_t i = 0; i < stoc_handler_count; ++i) {
+            original_functions[i] = game_server_handlers->at(i);
+            if (packet_entries[i].size()) {
+                game_server_handlers->at(i).handler_func = StoCHandler_Func;
+            }
+        }
+        LeaveCriticalSection(&mutex);
+    }
+    void Init() {
+        InitializeCriticalSection(&mutex);
+        // Requires GameThread module to be hooked!
+        GameThread::Enqueue([]() {
+            InitOnGameThread();
+            });
+    }
+    void Exit() {
+        DisableHooks();
+        DeleteCriticalSection(&mutex);
     }
 }
 
@@ -102,31 +165,66 @@ namespace GW {
         "StoCModule",   // name
         NULL,           // param
         ::Init,         // init_module
-        NULL,           // exit_module
+        ::Exit,           // exit_module
         ::EnableHooks,  // enable_hooks
         ::DisableHooks, // disable_hooks
     };
 
-    void StoC::RegisterPacketCallback(
+    bool StoC::RegisterPacketCallback(
         HookEntry *entry,
         uint32_t header,
-        PacketCallback callback)
+        const PacketCallback& callback,
+        int altitude)
     {
-        packets_callbacks[header].insert({entry, callback});
-        game_server_handlers[header].handler_func = StoCHandler_Func;
+        bool success = false;
+        EnterCriticalSection(&mutex);
+        if (packet_entries.size() <= header) {
+            packet_entries.resize(header + 1);
+        }
+        RemoveCallback(header, entry);
+        auto it = packet_entries[header].begin();
+        while (it != packet_entries[header].end()) {
+            if (it->altitude > altitude)
+                break;
+            it++;
+        }
+        packet_entries[header].insert(it, { altitude,entry, callback});
+        if (game_server_handlers && game_server_handlers->size() > header) {
+            game_server_handlers->at(header).handler_func = StoCHandler_Func;
+            success = true;
+        }
+        LeaveCriticalSection(&mutex);
+        return success;
+    }
+
+    bool StoC::RegisterPostPacketCallback(HookEntry* entry, uint32_t header, const PacketCallback& callback)
+    {
+        return RegisterPacketCallback(entry, header, callback, 0x8000);
     }
 
     void StoC::RemoveCallback(uint32_t header, HookEntry *entry) {
-        auto& callbacks = packets_callbacks[header];
-        auto it = callbacks.find(entry);
-        if (it != callbacks.end())
-            callbacks.erase(it);
+        EnterCriticalSection(&mutex);
+        if (packet_entries.size() <= header) {
+            packet_entries.resize(header + 1);
+        }
+        auto it = packet_entries[header].begin();
+        while (it != packet_entries[header].end()) {
+            if (it->entry == entry) {
+                packet_entries[header].erase(it);
+                break;
+            }
+            it++;
+        }
+        LeaveCriticalSection(&mutex);
     }
 
-    void StoC::EmulatePacket(Packet::StoC::PacketBase *packet) {
-        if (!Verify(original_functions))
-            return;
-        OriginalHandler(packet);
+    void StoC::RemovePostCallback(uint32_t header, HookEntry* entry)
+    {
+        RemoveCallback(header, entry);
+    }
+
+    bool StoC::EmulatePacket(Packet::StoC::PacketBase *packet) {
+        return OriginalHandler(packet);
     }
 
 } // namespace GW

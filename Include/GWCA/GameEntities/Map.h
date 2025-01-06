@@ -3,6 +3,9 @@
 #include <GWCA/GameContainers/Array.h>
 
 namespace GW {
+    namespace Constants {
+        enum class Campaign;
+    }
     struct MissionMapIcon { // total: 0x28/40
         /* +h0000 */ uint32_t index;
         /* +h0004 */ float X;
@@ -19,29 +22,38 @@ namespace GW {
 
     typedef Array<MissionMapIcon> MissionMapIconArray;
 
-    enum RegionType : uint32_t {
-        RegionType_AllianceBattle,
-        RegionType_Arena,
-        RegionType_ExplorableZone,
-        RegionType_GuildBattleArea,
-        RegionType_GuildHall,
-        RegionType_MissionOutpost,
-        RegionType_CooperativeMission,
-        RegionType_CompetitiveMission,
-        RegionType_EliteMission,
-        RegionType_Challenge,
-        RegionType_Outpost,
-        RegionType_ZaishenBattle,
-        RegionType_HeroesAscent,
-        RegionType_City,
-        RegionType_MissionArea,
-        RegionType_HeroBattleOutpost,
-        RegionType_HeroBattleArea,
-        RegionType_EotnMission,
-        RegionType_Dungeon,
-        RegionType_Marketplace,
-        RegionType_Unknown,
-        RegionType_DevRegion
+    enum class Continent : uint32_t {
+        Kryta,
+        DevContinent,
+        Cantha,
+        BattleIsles,
+        Elona,
+        RealmOfTorment
+    };
+
+    enum class RegionType : uint32_t {
+        AllianceBattle,
+        Arena,
+        ExplorableZone,
+        GuildBattleArea,
+        GuildHall,
+        MissionOutpost,
+        CooperativeMission,
+        CompetitiveMission,
+        EliteMission,
+        Challenge,
+        Outpost,
+        ZaishenBattle,
+        HeroesAscent,
+        City,
+        MissionArea,
+        HeroBattleOutpost,
+        HeroBattleArea,
+        EotnMission,
+        Dungeon,
+        Marketplace,
+        Unknown,
+        DevRegion
     };
 
     enum Region : uint32_t {
@@ -77,8 +89,8 @@ namespace GW {
 
     // https://github.com/entice/gw-interface/blob/master/GuildWarsInterface/Datastructures/Const/AreaInfo.cs
     struct AreaInfo { // total: 0x7C/124
-        /* +h0000 */ uint32_t campaign;
-        /* +h0004 */ uint32_t continent;
+        /* +h0000 */ Constants::Campaign campaign;
+        /* +h0004 */ Continent continent;
         /* +h0008 */ Region region;
         /* +h000C */ RegionType type;
         /* +h0010 */ uint32_t flags;
@@ -103,14 +115,20 @@ namespace GW {
         /* +h005C */ uint32_t icon_start_y_dupe;
         /* +h0060 */ uint32_t icon_end_x_dupe;
         /* +h0064 */ uint32_t icon_end_y_dupe;
-        /* +h0068 */ uint32_t h0068;
+        /* +h0068 */ uint32_t file_id;
         /* +h006C */ uint32_t mission_chronology;
         /* +h0070 */ uint32_t ha_map_chronology;
         /* +h0074 */ uint32_t name_id;
         /* +h0078 */ uint32_t description_id;
 
-        inline bool GetHasEnterButton() { return (flags & 0x1000000) == 0; }
-        inline bool GetIsOnWorldMap()   { return (flags & 0x0000020) == 0; }
+        inline uint32_t file_id1() { return (((file_id - 1) % 0xff00) + 0x100); }
+        inline uint32_t file_id2() { return (((file_id - 1) / 0xff00) + 0x100); }
+        
+
+        inline bool GetHasEnterButton() const { return (flags & 0x100) != 0 || (flags & 0x40000) != 0; }
+        inline bool GetIsOnWorldMap()   const { return (flags & 0x20) == 0; }
+        inline bool GetIsPvP()          const { return (flags & 0x1) != 0; }
+        inline bool GetIsGuildHall()    const { return (flags & 0x800000) != 0; }
     };
     static_assert(sizeof(AreaInfo) == 124, "struct AreaInfo has incorect size");
 }

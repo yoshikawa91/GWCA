@@ -20,6 +20,19 @@ namespace GW {
             Polish = 9,
             Russian
         };
+        enum class TextLanguage {
+            English,
+            Korean,
+            French,
+            German,
+            Italian,
+            Spanish,
+            TraditionalChinese,
+            Japanese = 8,
+            Polish,
+            Russian,
+            BorkBorkBork = 17
+        };
 
         enum class MapID {
             None = 0,
@@ -467,7 +480,8 @@ namespace GW {
             Gate_of_Secrets_outpost,
             Domain_of_Anguish,
 
-            Jennurs_Horde = 476,
+            Ooze_Pit_mission = 475,
+            Jennurs_Horde,
             Nundu_Bay,
             Gate_of_Desolation,
             Champions_Dawn_outpost,
@@ -692,6 +706,19 @@ namespace GW {
             The_Flight_North,
             The_Rise_of_the_White_Mantle,
 
+            // "Mission" maps, used for icon status on world map
+            Finding_the_Bloodstone_mission = 759,
+            Genius_Operated_Living_Enchanted_Manifestation_mission,
+            Against_the_Charr_mission,
+            Warband_of_brothers_mission,
+            Assault_on_the_Stronghold_mission,
+            Destructions_Depths_mission,
+            A_Time_for_Heroes_mission,
+            Curse_of_the_Nornbear_mission,
+            Blood_Washes_Blood_mission,
+            A_Gate_Too_Far_mission,
+            The_Elusive_Golemancer_mission,
+
             Secret_Lair_of_the_Snowmen2 = 781,  // ?
             Secret_Lair_of_the_Snowmen3,        // ?
             Droknars_Forge_cinematic,           // ?
@@ -706,7 +733,7 @@ namespace GW {
             Zaishen_Menagerie_Grounds,
             Zaishen_Menagerie_outpost,
             Codex_Arena_outpost,
-            The_Underworld_Something_Wicked_This_Way_Comes,
+            The_Underworld_Something_Wicked_This_Way_Comes = 806,
             The_Underworld_Dont_Fear_the_Reapers,
             Lions_Arch_Halloween_outpost,
             Lions_Arch_Wintersday_outpost,
@@ -717,8 +744,8 @@ namespace GW {
             Tomb_of_the_Primeval_Kings_Halloween_outpost,
             Shing_Jea_Monastery_Dragon_Festival_outpost,
             Shing_Jea_Monastery_Canthan_New_Year_outpost,
-
-            Kamadan_Jewel_of_Istan_Halloween_outpost = 818,
+            Kaineng_Center_Canthan_New_Year_outpost,
+            Kamadan_Jewel_of_Istan_Halloween_outpost,
             Kamadan_Jewel_of_Istan_Wintersday_outpost,
             Kamadan_Jewel_of_Istan_Canthan_New_Year_outpost,
             Eye_of_the_North_outpost_Wintersday_outpost,
